@@ -1057,6 +1057,11 @@ func (in *DataVolumeSourceHTTP) DeepCopyInto(out *DataVolumeSourceHTTP) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.Checksum != nil {
+		in, out := &in.Checksum, &out.Checksum
+		*out = new(string)
+		**out = **in
+	}
 	return
 }
 

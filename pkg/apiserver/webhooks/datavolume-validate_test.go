@@ -62,6 +62,31 @@ var _ = Describe("Validating Webhook", func() {
 			Expect(resp.Allowed).To(BeTrue())
 		})
 
+		DescribeTable("should validate HTTP source checksum field", func(checksum *string, expected bool) {
+			dataVolume := newHTTPDataVolume("testDV", "http://www.example.com")
+			dataVolume.Spec.Source.HTTP.Checksum = checksum
+			resp := validateDataVolumeCreate(dataVolume)
+			Expect(resp.Allowed).To(Equal(expected))
+		},
+			Entry("accept DataVolume with valid md5 checksum", ptr.To("md5:5d41402abc4b2a76b9719d911017c592"), true),
+			Entry("accept DataVolume with valid sha1 checksum", ptr.To("sha1:2fd4e1c67a2d28fced849ee1bb76e7391b93eb12"), true),
+			Entry("accept DataVolume with valid sha256 checksum", ptr.To("sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"), true),
+			Entry("accept DataVolume with valid sha512 checksum", ptr.To("sha512:f7fbba6e0636f890e56fbbf3283e524c6fa3204ae298382d624741d0dc6638326e282c41be5e4254d8820772c5518a2c5a8c0c7f7eda19594a7eb539453e1ed7"), true),
+			Entry("accept DataVolume with uppercase hash", ptr.To("sha256:2C26B46B68FFC68FF99B453C1D30413413422D706483BFA0F98A5E886266E7AE"), true),
+			Entry("accept DataVolume with mixed case hash", ptr.To("sha256:2c26B46b68FFC68ff99B453c1d30413413422d706483bfa0f98a5e886266e7ae"), true),
+			Entry("accept DataVolume without checksum", nil, true),
+			Entry("accept DataVolume with empty checksum", ptr.To(""), true),
+			Entry("reject DataVolume with invalid checksum format - no colon", ptr.To("sha256abc123"), false),
+			Entry("reject DataVolume with invalid checksum format - multiple colons", ptr.To("sha256:abc:123"), false),
+			Entry("reject DataVolume with unsupported algorithm", ptr.To("sha384:abc123"), false),
+			Entry("reject DataVolume with wrong md5 hash length", ptr.To("md5:abc123"), false),
+			Entry("reject DataVolume with wrong sha1 hash length", ptr.To("sha1:abc123"), false),
+			Entry("reject DataVolume with wrong sha256 hash length", ptr.To("sha256:abc123"), false),
+			Entry("reject DataVolume with wrong sha512 hash length", ptr.To("sha512:abc123"), false),
+			Entry("reject DataVolume with non-hex characters in hash", ptr.To("sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ag"), false),
+			Entry("reject DataVolume with special characters in hash", ptr.To("sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7a!"), false),
+		)
+
 		It("should accept DataVolume with GS source on create", func() {
 			dataVolume := newGCSDataVolume("testDV", "gs://www.example.com")
 			resp := validateDataVolumeCreate(dataVolume)
