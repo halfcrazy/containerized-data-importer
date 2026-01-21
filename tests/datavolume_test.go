@@ -1247,6 +1247,87 @@ var _ = Describe("[vendor:cnv-qe@redhat.com][level:component]DataVolume tests", 
 				}}),
 		)
 
+		It("[rfe_id:XXXX][crit:high][test_id:XXXX]should recover from checksum failure by updating spec", func() {
+			By("Creating DataVolume with incorrect checksum")
+			dvName := "dv-http-import-checksum-recovery"
+			dataVolume := utils.NewDataVolumeWithHTTPImport(dvName, "1Gi", tinyCoreIsoURL())
+			// Use incorrect checksum to trigger failure
+			dataVolume.Spec.Source.HTTP.Checksum = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+
+			By("Creating DataVolume")
+			dataVolume, err := utils.CreateDataVolumeFromDefinition(f.CdiClient, f.Namespace.Name, dataVolume)
+			Expect(err).ToNot(HaveOccurred())
+			f.ForceBindPvcIfDvIsWaitForFirstConsumer(dataVolume)
+
+			By("Waiting for DataVolume to fail due to checksum mismatch")
+			err = utils.WaitForDataVolumePhase(f, f.Namespace.Name, cdiv1.Failed, dataVolume.Name)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Verifying PVC phase is Failed")
+			pvc, err := utils.WaitForPVC(f.K8sClient, dataVolume.Namespace, dataVolume.Name)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(pvc.Annotations[controller.AnnPodPhase]).To(Equal(string(v1.PodFailed)))
+
+			By("Updating PVC annotation with correct checksum to simulate spec change")
+			// sha256 checksum for tinyCore.iso: 11d74aa12309da7240f171c140394729bb9b407e8fa3cb52c6dcbf7009352fab
+			correctChecksum := "sha256:11d74aa12309da7240f171c140394729bb9b407e8fa3cb52c6dcbf7009352fab"
+			pvc.Annotations[controller.AnnChecksum] = correctChecksum
+			// Clear pod phase to allow new pod creation
+			delete(pvc.Annotations, controller.AnnPodPhase)
+			_, err = f.K8sClient.CoreV1().PersistentVolumeClaims(pvc.Namespace).Update(context.TODO(), pvc, metav1.UpdateOptions{})
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Waiting for new pod to be created and DataVolume to succeed")
+			err = utils.WaitForDataVolumePhase(f, f.Namespace.Name, cdiv1.Succeeded, dataVolume.Name)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Cleaning up")
+			err = utils.DeleteDataVolume(f.CdiClient, f.Namespace.Name, dataVolume.Name)
+			Expect(err).ToNot(HaveOccurred())
+		})
+
+		It("[rfe_id:XXXX][crit:high][test_id:XXXX]should recover from checksum failure by updating endpoint", func() {
+			By("Creating DataVolume with correct URL but incorrect checksum")
+			dvName := "dv-http-import-endpoint-recovery"
+			dataVolume := utils.NewDataVolumeWithHTTPImport(dvName, "1Gi", tinyCoreIsoURL())
+			// Use incorrect checksum to trigger failure
+			dataVolume.Spec.Source.HTTP.Checksum = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+
+			By("Creating DataVolume")
+			dataVolume, err := utils.CreateDataVolumeFromDefinition(f.CdiClient, f.Namespace.Name, dataVolume)
+			Expect(err).ToNot(HaveOccurred())
+			f.ForceBindPvcIfDvIsWaitForFirstConsumer(dataVolume)
+
+			By("Waiting for DataVolume to fail due to checksum mismatch")
+			err = utils.WaitForDataVolumePhase(f, f.Namespace.Name, cdiv1.Failed, dataVolume.Name)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Verifying PVC phase is Failed")
+			pvc, err := utils.WaitForPVC(f.K8sClient, dataVolume.Namespace, dataVolume.Name)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(pvc.Annotations[controller.AnnPodPhase]).To(Equal(string(v1.PodFailed)))
+
+			By("Updating PVC annotation with different endpoint and removing checksum to simulate spec change")
+			// Use a different valid URL (e.g., qcow2 instead of iso) to test endpoint change
+			// Note: In real scenario, user would update DV spec, which gets synced to PVC annotations
+			alternativeURL := fmt.Sprintf(utils.TinyCoreQcow2URL, f.CdiInstallNs)
+			pvc.Annotations[controller.AnnEndpoint] = alternativeURL
+			// Remove checksum to allow import without checksum validation
+			delete(pvc.Annotations, controller.AnnChecksum)
+			// Clear pod phase to allow new pod creation
+			delete(pvc.Annotations, controller.AnnPodPhase)
+			_, err = f.K8sClient.CoreV1().PersistentVolumeClaims(pvc.Namespace).Update(context.TODO(), pvc, metav1.UpdateOptions{})
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Waiting for new pod to be created and DataVolume to succeed")
+			err = utils.WaitForDataVolumePhase(f, f.Namespace.Name, cdiv1.Succeeded, dataVolume.Name)
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Cleaning up")
+			err = utils.DeleteDataVolume(f.CdiClient, f.Namespace.Name, dataVolume.Name)
+			Expect(err).ToNot(HaveOccurred())
+		})
+
 		savedVddkConfigMap := common.VddkConfigMap + "-saved"
 
 		createVddkDataVolumeWithInitImageURL := func(dataVolumeName, size, url string) *cdiv1.DataVolume {

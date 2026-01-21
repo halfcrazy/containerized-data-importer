@@ -288,11 +288,12 @@ func (r *ImportReconciler) updateStatusPhase(pvc *corev1.PersistentVolumeClaim, 
 		event.reason = ImportInProgress
 		event.message = fmt.Sprintf(MessageImportInProgress, pvc.Name)
 	case string(corev1.PodFailed):
-		// Only mark as Failed if it's a fatal error (e.g., checksum mismatch).
-		// Otherwise, keep the current phase to allow retries.
-		if pvc.Annotations[cc.AnnImportFatalError] == "true" {
+		// Only mark as Failed for fatal errors (e.g., checksum mismatch).
+		// Other failures keep the current phase to allow retries.
+		if pvc.Annotations[cc.AnnRunningConditionReason] == "ChecksumError" {
 			dataVolumeCopy.Status.Phase = cdiv1.Failed
 		}
+		// Otherwise, keep the current phase (e.g., ImportScheduled) to allow retries
 		event.eventType = corev1.EventTypeWarning
 		event.reason = ImportFailed
 		event.message = fmt.Sprintf(MessageImportFailed, pvc.Name)
