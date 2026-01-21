@@ -257,7 +257,7 @@ type DataVolumeSourceHTTP struct {
 	// Supported algorithms: md5, sha1, sha256, sha512
 	// If specified, the importer will verify the downloaded content matches this checksum
 	// +optional
-	Checksum *string `json:"checksum,omitempty"`
+	Checksum string `json:"checksum,omitempty"`
 }
 
 // DataVolumeSourceImageIO provides the parameters to create a Data Volume from an imageio source

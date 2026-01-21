@@ -144,12 +144,7 @@ func NewHTTPDataSource(endpoint, accessKey, secKey, certDir string, contentType 
 // Info is called to get initial information about the data.
 func (hs *HTTPDataSource) Info() (ProcessingPhase, error) {
 	var err error
-	// Wrap the reader with checksum validator if needed
-	reader := io.ReadCloser(hs.httpReader)
-	if hs.checksumValidator != nil {
-		reader = io.NopCloser(hs.checksumValidator.GetReader(hs.httpReader))
-	}
-	hs.readers, err = NewFormatReaders(reader, hs.contentLength)
+	hs.readers, err = NewFormatReaders(hs.httpReader, hs.contentLength, hs.checksumValidator)
 	if err != nil {
 		klog.Errorf("Error creating readers: %v", err)
 		return ProcessingPhaseError, err
@@ -199,7 +194,7 @@ func (hs *HTTPDataSource) Transfer(path string, preallocation bool) (ProcessingP
 			return ProcessingPhaseError, err
 		}
 		// Verify checksum if specified
-		if err := hs.checksumValidator.Validate(); err != nil {
+		if err := hs.readers.ValidateChecksum(); err != nil {
 			return ProcessingPhaseError, fmt.Errorf("checksum validation failed: %w", err)
 		}
 		// If we successfully wrote to the file, then the parse will succeed.
@@ -210,7 +205,7 @@ func (hs *HTTPDataSource) Transfer(path string, preallocation bool) (ProcessingP
 			return ProcessingPhaseError, errors.Wrap(err, "unable to untar files from endpoint")
 		}
 		// Verify checksum if specified
-		if err := hs.checksumValidator.Validate(); err != nil {
+		if err := hs.readers.ValidateChecksum(); err != nil {
 			return ProcessingPhaseError, fmt.Errorf("checksum validation failed: %w", err)
 		}
 		hs.url = nil
@@ -230,7 +225,7 @@ func (hs *HTTPDataSource) TransferFile(fileName string, preallocation bool) (Pro
 		return ProcessingPhaseError, err
 	}
 	// Verify checksum if specified
-	if err := hs.checksumValidator.Validate(); err != nil {
+	if err := hs.readers.ValidateChecksum(); err != nil {
 		return ProcessingPhaseError, fmt.Errorf("checksum validation failed: %w", err)
 	}
 	return ProcessingPhaseResize, nil
