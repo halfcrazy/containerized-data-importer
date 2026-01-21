@@ -457,7 +457,7 @@ var _ = Describe("[vendor:cnv-qe@redhat.com][level:component]DataVolume tests", 
 		It("[rfe_id:XXXX][crit:high][posneg:negative][test_id:XXXX]should fail creating import dv due to invalid checksum format", func() {
 			By("Creating DataVolume with invalid checksum format")
 			dataVolume := utils.NewDataVolumeWithHTTPImport("dv-http-import-invalid-checksum-format", "1Gi", tinyCoreIsoURL())
-			dataVolume.Spec.Source.HTTP.Checksum = ptr.To[string]("invalid-format-without-colon")
+			dataVolume.Spec.Source.HTTP.Checksum = "invalid-format-without-colon"
 
 			By("Verifying webhook rejects the creation")
 			_, err := utils.CreateDataVolumeFromDefinition(f.CdiClient, f.Namespace.Name, dataVolume)
@@ -1189,7 +1189,7 @@ var _ = Describe("[vendor:cnv-qe@redhat.com][level:component]DataVolume tests", 
 				dvFunc: func(name, size, url string) *cdiv1.DataVolume {
 					dv := utils.NewDataVolumeWithHTTPImport(name, size, url)
 					// sha256 checksum for tinyCore.iso: 11d74aa12309da7240f171c140394729bb9b407e8fa3cb52c6dcbf7009352fab
-					dv.Spec.Source.HTTP.Checksum = ptr.To[string]("sha256:11d74aa12309da7240f171c140394729bb9b407e8fa3cb52c6dcbf7009352fab")
+					dv.Spec.Source.HTTP.Checksum = "sha256:11d74aa12309da7240f171c140394729bb9b407e8fa3cb52c6dcbf7009352fab"
 					return dv
 				},
 				eventReason:      dvc.ImportSucceeded,
@@ -1217,7 +1217,7 @@ var _ = Describe("[vendor:cnv-qe@redhat.com][level:component]DataVolume tests", 
 				url:  tinyCoreIsoURL,
 				dvFunc: func(name, size, url string) *cdiv1.DataVolume {
 					dv := utils.NewDataVolumeWithHTTPImport(name, size, url)
-					dv.Spec.Source.HTTP.Checksum = ptr.To[string]("sha256:0000000000000000000000000000000000000000000000000000000000000000")
+					dv.Spec.Source.HTTP.Checksum = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
 					return dv
 				},
 				errorMessage: "checksum validation failed",

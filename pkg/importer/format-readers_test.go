@@ -45,7 +45,7 @@ var _ = Describe("Format Readers", func() {
 		Expect(err).ToNot(HaveOccurred())
 		defer f.Close()
 
-		fr, err = NewFormatReaders(f, uint64(0))
+		fr, err = NewFormatReaders(f, uint64(0), nil)
 		if wantErr {
 			Expect(err).To(HaveOccurred())
 		} else {
@@ -69,7 +69,7 @@ var _ = Describe("Format Readers", func() {
 		f, err := os.Open(cirrosFilePath)
 		Expect(err).ToNot(HaveOccurred())
 		defer f.Close()
-		fr, err = NewFormatReaders(f, uint64(0))
+		fr, err = NewFormatReaders(f, uint64(0), nil)
 		Expect(err).ToNot(HaveOccurred())
 		By("Verifying there are currently 2 readers")
 		Expect(fr.readers).To(HaveLen(2))
@@ -91,7 +91,7 @@ var _ = Describe("Format Readers", func() {
 
 	It("should not crash on no progress reader", func() {
 		stringReader := io.NopCloser(strings.NewReader("This is a test string"))
-		testReader, err := NewFormatReaders(stringReader, uint64(0))
+		testReader, err := NewFormatReaders(stringReader, uint64(0), nil)
 		// Not passing a real string, so the header checking will fail.
 		Expect(err).To(HaveOccurred())
 		Expect(testReader.progressReader).To(BeNil())

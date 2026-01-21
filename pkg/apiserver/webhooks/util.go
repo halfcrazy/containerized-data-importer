@@ -239,12 +239,12 @@ func validateSourceURL(sourceURL string) string {
 	return ""
 }
 
-func validateChecksum(checksumStr *string, field *field.Path, sourceType string) []metav1.StatusCause {
-	if checksumStr == nil || *checksumStr == "" {
+func validateChecksum(checksumStr string, field *field.Path, sourceType string) []metav1.StatusCause {
+	if checksumStr == "" {
 		return nil // checksum is optional
 	}
 
-	if err := checksum.ValidateFormat(*checksumStr); err != nil {
+	if _, _, err := checksum.ParseAndValidate(checksumStr); err != nil {
 		return []metav1.StatusCause{{
 			Type:    metav1.CauseTypeFieldValueInvalid,
 			Message: fmt.Sprintf("Invalid checksum format: %v", err),

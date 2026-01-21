@@ -38,18 +38,6 @@ const (
 	AlgorithmSHA512 = "sha512"
 )
 
-// ValidateFormat validates the format of a checksum string
-// Format: "algorithm:hash", e.g., "sha256:abc123..." or "md5:def456..."
-// Returns nil if valid or empty, error otherwise
-func ValidateFormat(checksumStr string) error {
-	if checksumStr == "" {
-		return nil
-	}
-
-	_, _, err := ParseAndValidate(checksumStr)
-	return err
-}
-
 // ParseAndValidate parses and validates a checksum string
 // Returns algorithm and hash value if valid
 func ParseAndValidate(checksumStr string) (algorithm, hash string, err error) {

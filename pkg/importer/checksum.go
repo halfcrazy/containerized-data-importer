@@ -69,7 +69,7 @@ func NewChecksumValidator(checksumStr string) (*ChecksumValidator, error) {
 
 // GetReader returns an io.Reader that calculates the checksum as data is read
 func (cv *ChecksumValidator) GetReader(r io.Reader) io.Reader {
-	if cv == nil || cv.hasher == nil {
+	if cv.hasher == nil {
 		return r
 	}
 	return io.TeeReader(r, cv.hasher)
@@ -77,10 +77,6 @@ func (cv *ChecksumValidator) GetReader(r io.Reader) io.Reader {
 
 // Validate checks if the calculated checksum matches the expected checksum
 func (cv *ChecksumValidator) Validate() error {
-	if cv == nil {
-		return nil
-	}
-
 	calculatedChecksum := hex.EncodeToString(cv.hasher.Sum(nil))
 	if calculatedChecksum != cv.expectedChecksum {
 		return fmt.Errorf(
@@ -97,11 +93,8 @@ func (cv *ChecksumValidator) Validate() error {
 	return nil
 }
 
-// GetAlgorithm returns the hash algorithm being used
-func (cv *ChecksumValidator) GetAlgorithm() string {
-	if cv == nil {
-		return ""
-	}
+// Algorithm returns the hash algorithm being used
+func (cv *ChecksumValidator) Algorithm() string {
 	return cv.algorithm
 }
 

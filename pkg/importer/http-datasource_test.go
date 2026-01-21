@@ -32,10 +32,11 @@ import (
 var (
 	cirrosFileName          = "cirros-qcow2.img"
 	diskimageTarFileName    = "cirros.tar"
+	diskimageTarFilePath    = filepath.Join(imageDir, diskimageTarFileName)
 	tinyCoreGz              = "tinyCore.iso.gz"
 	tinyCoreXz              = "tinyCore.iso.xz"
-	cirrosData, _           = readFile(filepath.Join(imageDir, cirrosFileName))
-	diskimageArchiveData, _ = readFile(filepath.Join(imageDir, diskimageTarFileName))
+	cirrosData, _           = readFile(cirrosFilePath)
+	diskimageArchiveData, _ = readFile(diskimageTarFilePath)
 )
 
 var _ = Describe("Http data source", func() {
@@ -189,10 +190,10 @@ var _ = Describe("Http data source", func() {
 
 	Context("Checksum validation", func() {
 		var (
-			testData              []byte
-			testDataSHA256        string
-			archiveData           []byte
-			archiveDataSHA256     string
+			testData          []byte
+			testDataSHA256    string
+			archiveData       []byte
+			archiveDataSHA256 string
 		)
 
 		BeforeEach(func() {
