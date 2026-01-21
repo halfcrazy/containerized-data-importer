@@ -298,6 +298,14 @@ func (r *ImportReconciler) updateStatusPhase(pvc *corev1.PersistentVolumeClaim, 
 		event.reason = ImportFailed
 		event.message = fmt.Sprintf(MessageImportFailed, pvc.Name)
 	case string(corev1.PodSucceeded):
+		// Check for checksum validation failures that exit with code 0 but should be marked as Failed
+		if pvc.Annotations[cc.AnnRunningConditionReason] == "ChecksumError" {
+			dataVolumeCopy.Status.Phase = cdiv1.Failed
+			event.eventType = corev1.EventTypeWarning
+			event.reason = ImportFailed
+			event.message = fmt.Sprintf(MessageImportFailed, pvc.Name)
+			break
+		}
 		if cc.IsMultiStageImportInProgress(pvc) {
 			// Multi-stage annotations will be updated by import-populator if populators are in use
 			if !isPVCImportPopulation(pvc) {

@@ -191,25 +191,21 @@ func handleImport(
 	checksumMismatch := errors.Is(err, importer.ErrChecksumMismatch)
 	if err != nil && !scratchSpaceRequired {
 		klog.Errorf("%+v", err)
-		// Special-case checksum validation failures: exit 0 to avoid kubelet restart loops
-		// and let the controller read termination message to mark fatal.
+		// Write JSON-formatted termination message so parseTerminationMessage can unmarshal it
 		if checksumMismatch {
-			// Write JSON-formatted termination message so parseTerminationMessage can unmarshal it
 			termMsgStruct := &common.TerminationMessage{
 				Message: ptr.To(fmt.Sprintf("Unable to process data: %v", err.Error())),
 			}
 			if err := writeTerminationMessage(termMsgStruct); err != nil {
 				klog.Errorf("%+v", err)
 			}
-			// Exiting instead of returning 0 as normally to avoid clashing
-			// with cleanup functions (fsyncDataFile) that assume the imported
-			// file will be there during regular exit.
-			os.Exit(0)
+		} else {
+			// For other errors, write plain text
+			if err := util.WriteTerminationMessage(fmt.Sprintf("Unable to process data: %v", err.Error())); err != nil {
+				klog.Errorf("%+v", err)
+			}
 		}
-		// For other errors, write plain text and exit with error code
-		if err := util.WriteTerminationMessage(fmt.Sprintf("Unable to process data: %v", err.Error())); err != nil {
-			klog.Errorf("%+v", err)
-		}
+		// Exit with error code (controller will delete pod to stop retries for checksum errors)
 		return 1
 	}
 

@@ -476,13 +476,16 @@ func (r *ImportReconciler) updatePvcFromPod(pvc *corev1.PersistentVolumeClaim, p
 		log.V(1).Info("Updated PVC", "pvc.anno.Phase", anno[cc.AnnPodPhase], "pvc.anno.Restarts", anno[cc.AnnPodRestarts])
 	}
 
-	if cc.IsPVCComplete(pvc) || podModificationsNeeded {
-		if !podModificationsNeeded {
+	// Delete pod if complete, needs modifications, or has fatal errors like checksum mismatch
+	// (to stop Kubernetes from automatically retrying with RestartPolicyOnFailure)
+	checksumError := anno[cc.AnnRunningConditionReason] == "ChecksumError"
+	if cc.IsPVCComplete(pvc) || podModificationsNeeded || checksumError {
+		if !podModificationsNeeded && !checksumError {
 			r.recorder.Event(pvc, corev1.EventTypeNormal, ImportSucceededPVC, "Import Successful")
 			log.V(1).Info("Import completed successfully")
 		}
-		if cc.ShouldDeletePod(pvc) {
-			log.V(1).Info("Deleting pod", "pod.Name", pod.Name)
+		if cc.ShouldDeletePod(pvc) || checksumError {
+			log.V(1).Info("Deleting pod", "pod.Name", pod.Name, "reason", map[bool]string{true: "checksum error", false: "normal cleanup"}[checksumError])
 			if err := r.cleanup(pvc, pod, log); err != nil {
 				return err
 			}
