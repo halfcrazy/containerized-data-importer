@@ -26,53 +26,53 @@ import (
 )
 
 var _ = Describe("ChecksumValidator", func() {
-	DescribeTable("NewChecksumValidator should", func(checksumStr string, wantErr bool, wantAlgo string) {
+	DescribeTable("should", func(checksumStr string, data string, wantCreationErr bool, wantValidationErr bool, wantAlgo string) {
+		// Test creation
 		validator, err := NewChecksumValidator(checksumStr)
-		if wantErr {
+		if wantCreationErr {
 			Expect(err).To(HaveOccurred())
-		} else {
-			Expect(err).NotTo(HaveOccurred())
-			if checksumStr != "" {
-				Expect(validator).NotTo(BeNil())
-				Expect(validator.Algorithm()).To(Equal(wantAlgo))
-			}
+			return
 		}
-	},
-		Entry("return valid validator for SHA256", "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", false, "sha256"),
-		Entry("return valid validator for MD5", "md5:d41d8cd98f00b204e9800998ecf8427e", false, "md5"),
-		Entry("return valid validator for SHA512", "sha512:cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e", false, "sha512"),
-		Entry("return nil for empty string", "", false, ""),
-		Entry("return error for invalid format - no colon", "sha256abc123", true, ""),
-		Entry("return error for invalid format - multiple colons", "sha256:abc:123", true, ""),
-		Entry("return error for unsupported algorithm", "crc32:abc123", true, ""),
-		Entry("return error for empty hash value", "sha256:", true, ""),
-		Entry("handle case insensitive algorithm", "SHA256:E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855", false, "sha256"),
-	)
-
-	DescribeTable("Validate should", func(data string, checksumStr string, wantErr bool) {
-		validator, err := NewChecksumValidator(checksumStr)
 		Expect(err).NotTo(HaveOccurred())
 
-		if validator != nil {
+		// Test algorithm if validator was created
+		if checksumStr != "" {
+			Expect(validator).NotTo(BeNil())
+			Expect(validator.Algorithm()).To(Equal(wantAlgo))
+		}
+
+		// Test validation if data is provided
+		if data != "" && validator != nil {
 			reader := validator.GetReader(strings.NewReader(data))
 			_, err = io.Copy(io.Discard, reader)
 			Expect(err).NotTo(HaveOccurred())
 
 			err = validator.Validate()
-		}
-
-		if wantErr {
-			Expect(err).To(HaveOccurred())
-		} else {
-			Expect(err).NotTo(HaveOccurred())
+			if wantValidationErr {
+				Expect(err).To(HaveOccurred())
+			} else {
+				Expect(err).NotTo(HaveOccurred())
+			}
 		}
 	},
-		Entry("succeed with valid SHA256 for empty string", "", "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", false),
-		Entry("succeed with valid MD5 for empty string", "", "md5:d41d8cd98f00b204e9800998ecf8427e", false),
-		Entry("succeed with valid SHA256 for hello world", "hello world", "sha256:b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9", false),
-		Entry("fail with invalid SHA256 - wrong hash", "hello world", "sha256:0000000000000000000000000000000000000000000000000000000000000000", true),
-		Entry("succeed with valid MD5 for hello world", "hello world", "md5:5eb63bbbe01eeed093cb22bb8f5acdc3", false),
-		Entry("succeed when no checksum specified", "hello world", "", false),
+		// Creation tests
+		Entry("return valid validator for SHA256", "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "", false, false, "sha256"),
+		Entry("return valid validator for MD5", "md5:d41d8cd98f00b204e9800998ecf8427e", "", false, false, "md5"),
+		Entry("return valid validator for SHA512", "sha512:cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e", "", false, false, "sha512"),
+		Entry("return nil for empty string", "", "", false, false, ""),
+		Entry("return error for invalid format - no colon", "sha256abc123", "", true, false, ""),
+		Entry("return error for invalid format - multiple colons", "sha256:abc:123", "", true, false, ""),
+		Entry("return error for unsupported algorithm", "crc32:abc123", "", true, false, ""),
+		Entry("return error for empty hash value", "sha256:", "", true, false, ""),
+		Entry("handle case insensitive algorithm", "SHA256:E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855", "", false, false, "sha256"),
+
+		// Validation tests
+		Entry("succeed with valid SHA256 for empty string", "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "", false, false, "sha256"),
+		Entry("succeed with valid MD5 for empty string", "md5:d41d8cd98f00b204e9800998ecf8427e", "", false, false, "md5"),
+		Entry("succeed with valid SHA256 for hello world", "sha256:b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9", "hello world", false, false, "sha256"),
+		Entry("fail with invalid SHA256 - wrong hash", "sha256:0000000000000000000000000000000000000000000000000000000000000000", "hello world", false, true, "sha256"),
+		Entry("succeed with valid MD5 for hello world", "md5:5eb63bbbe01eeed093cb22bb8f5acdc3", "hello world", false, false, "md5"),
+		Entry("succeed when no checksum specified", "", "hello world", false, false, ""),
 	)
 
 	It("GetReader should return TeeReader when validator is non-nil", func() {
