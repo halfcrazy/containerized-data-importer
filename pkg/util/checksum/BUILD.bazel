@@ -12,6 +12,13 @@ go_library(
 
 go_test(
     name = "go_default_test",
-    srcs = ["checksum_test.go"],
+    srcs = [
+        "checksum_suite_test.go",
+        "checksum_test.go",
+    ],
     embed = [":go_default_library"],
+    deps = [
+        "//vendor/github.com/onsi/ginkgo/v2:go_default_library",
+        "//vendor/github.com/onsi/gomega:go_default_library",
+    ],
 )

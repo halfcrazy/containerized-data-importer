@@ -17,65 +17,25 @@ limitations under the License.
 package checksum
 
 import (
-	"testing"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
 
-func TestParseAndValidate(t *testing.T) {
-	tests := []struct {
-		name          string
-		checksumStr   string
-		wantAlgorithm string
-		wantHash      string
-		wantErr       bool
-	}{
-		{
-			name:          "valid sha256",
-			checksumStr:   "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-			wantAlgorithm: "sha256",
-			wantHash:      "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-			wantErr:       false,
-		},
-		{
-			name:          "valid sha256 uppercase converted to lowercase",
-			checksumStr:   "SHA256:E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
-			wantAlgorithm: "sha256",
-			wantHash:      "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-			wantErr:       false,
-		},
-		{
-			name:          "valid md5",
-			checksumStr:   "md5:d41d8cd98f00b204e9800998ecf8427e",
-			wantAlgorithm: "md5",
-			wantHash:      "d41d8cd98f00b204e9800998ecf8427e",
-			wantErr:       false,
-		},
-		{
-			name:        "invalid format",
-			checksumStr: "sha256",
-			wantErr:     true,
-		},
-		{
-			name:        "unsupported algorithm",
-			checksumStr: "sha384:abc123",
-			wantErr:     true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			algorithm, hash, err := ParseAndValidate(tt.checksumStr)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ParseAndValidate() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if err == nil {
-				if algorithm != tt.wantAlgorithm {
-					t.Errorf("ParseAndValidate() algorithm = %v, want %v", algorithm, tt.wantAlgorithm)
-				}
-				if hash != tt.wantHash {
-					t.Errorf("ParseAndValidate() hash = %v, want %v", hash, tt.wantHash)
-				}
-			}
-		})
-	}
-}
+var _ = Describe("ParseAndValidate", func() {
+	DescribeTable("should parse and validate checksum strings", func(checksumStr string, wantAlgorithm string, wantHash string, wantErr bool) {
+		algorithm, hash, err := ParseAndValidate(checksumStr)
+		if wantErr {
+			Expect(err).To(HaveOccurred())
+		} else {
+			Expect(err).NotTo(HaveOccurred())
+			Expect(algorithm).To(Equal(wantAlgorithm))
+			Expect(hash).To(Equal(wantHash))
+		}
+	},
+		Entry("valid sha256", "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "sha256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", false),
+		Entry("valid sha256 uppercase converted to lowercase", "SHA256:E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855", "sha256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", false),
+		Entry("valid md5", "md5:d41d8cd98f00b204e9800998ecf8427e", "md5", "d41d8cd98f00b204e9800998ecf8427e", false),
+		Entry("invalid format", "sha256", "", "", true),
+		Entry("unsupported algorithm", "sha384:abc123", "", "", true),
+	)
+})
