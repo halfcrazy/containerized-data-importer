@@ -17,6 +17,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -194,6 +195,8 @@ func handleImport(
 		// Special-case checksum validation failures: exit 0 to avoid kubelet restart loops
 		// and let the controller read termination message to mark fatal.
 		if checksumMismatch {
+			// Remove the downloaded file(s) so we do not leave potentially malicious or corrupt data on the PVC.
+			removeDownloadedFileOnChecksumFailure(contentType, volumeMode)
 			// Write JSON-formatted termination message so parseTerminationMessage can unmarshal it
 			termMsgStruct := &common.TerminationMessage{
 				Message: ptr.To(fmt.Sprintf("Unable to process data: %v", err.Error())),
@@ -378,6 +381,58 @@ func errorEmptyDiskWithContentTypeArchive() {
 		klog.Errorf("%+v", err)
 	}
 	os.Exit(1)
+}
+
+// removeDownloadedFileOnChecksumFailure removes the downloaded data from the PVC when checksum
+// validation fails, so we do not leave potentially malicious or corrupt data.
+// It handles three cases:
+//   - Scratch: the temp file written by Transfer() (scratchDataDir/tmpimage) is always removed.
+//   - File (kubevirt, filesystem): the single data file (e.g. /data/disk.img) is removed.
+//   - Archive (filesystem): the archive is extracted into the data dir; all contents of that
+//     directory are removed (the directory itself is left intact as it is the volume mount).
+//   - Block: only the scratch temp file is removed; the block device cannot be removed.
+func removeDownloadedFileOnChecksumFailure(contentType string, volumeMode v1.PersistentVolumeMode) {
+	const scratchTempFile = "tmpimage" // same name used by Transfer() in pkg/importer
+
+	// 1) Scratch: remove temp file from Transfer() path (e.g. /scratch/tmpimage)
+	scratchFile := filepath.Join(common.ScratchDataDir, scratchTempFile)
+	if err := os.Remove(scratchFile); err != nil && !os.IsNotExist(err) {
+		klog.Warningf("Failed to remove scratch file %s on checksum failure: %v", scratchFile, err)
+	}
+
+	if volumeMode != v1.PersistentVolumeFilesystem {
+		return
+	}
+
+	// 2) Archive: Transfer() extracts into data dir; remove all contents, not the mount point
+	if contentType == string(cdiv1.DataVolumeArchive) {
+		removeDirContents(common.ImporterVolumePath)
+		return
+	}
+
+	// 3) File (kubevirt): single data file (e.g. /data/disk.img)
+	dataFile := getImporterDestPath(contentType, volumeMode)
+	if err := os.Remove(dataFile); err != nil && !os.IsNotExist(err) {
+		klog.Warningf("Failed to remove data file %s on checksum failure: %v", dataFile, err)
+	}
+}
+
+// removeDirContents removes all files and subdirectories under dir, but not dir itself.
+// Used for archive cleanup where the volume is mounted at dir.
+func removeDirContents(dir string) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			klog.Warningf("Failed to list directory %s on checksum failure cleanup: %v", dir, err)
+		}
+		return
+	}
+	for _, e := range entries {
+		p := filepath.Join(dir, e.Name())
+		if err := os.RemoveAll(p); err != nil {
+			klog.Warningf("Failed to remove %s on checksum failure cleanup: %v", p, err)
+		}
+	}
 }
 
 func fsyncDataFile(contentType string, volumeMode v1.PersistentVolumeMode) {

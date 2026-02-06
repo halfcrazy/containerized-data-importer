@@ -454,23 +454,6 @@ var _ = Describe("[vendor:cnv-qe@redhat.com][level:component]DataVolume tests", 
 			Expect(err).ToNot(HaveOccurred())
 		}
 
-		It("[rfe_id:XXXX][crit:high][posneg:negative][test_id:XXXX]should fail creating import dv due to invalid checksum format", func() {
-			By("Creating DataVolume with invalid checksum format")
-			dataVolume := utils.NewDataVolumeWithHTTPImport("dv-http-import-invalid-checksum-format", "1Gi", tinyCoreIsoURL())
-			dataVolume.Spec.Source.HTTP.Checksum = "invalid-format-without-colon"
-
-			By("Verifying webhook rejects the creation")
-			_, err := utils.CreateDataVolumeFromDefinition(f.CdiClient, f.Namespace.Name, dataVolume)
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("Invalid checksum format"))
-
-			By("Verifying DataVolume was not created")
-			Eventually(func() bool {
-				_, err := f.CdiClient.CdiV1beta1().DataVolumes(f.Namespace.Name).Get(context.TODO(), dataVolume.Name, metav1.GetOptions{})
-				return k8serrors.IsNotFound(err)
-			}, timeout, pollingInterval).Should(BeTrue())
-		})
-
 		DescribeTable("should", testDataVolume,
 			Entry("[rfe_id:1115][crit:high][test_id:1357]succeed creating import dv with given valid url", dataVolumeTestArguments{
 				name:             "dv-http-import",

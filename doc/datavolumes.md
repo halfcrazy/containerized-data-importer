@@ -150,6 +150,9 @@ For HTTP/HTTPS sources, you can specify a checksum to verify the integrity of th
 > [!NOTE]
 > Checksum validation is currently supported only for HTTP/HTTPS sources. S3 and GCS sources have built-in integrity verification mechanisms (ETag for S3, MD5Hash for GCS) and do not require explicit checksum specification.
 
+> [!WARNING]
+> HTTP checksum validation is **not** supported when using the registry **node pull** mode (`ImporterPullMethod=RegistryPullNode`). In that path, data is converted via nbdkit/qemu-img without going through the streaming transfer, so checksum is not verified. To validate HTTP import integrity, use the default pod pull method or avoid node pull for HTTP sources.
+
 Supported hash algorithms: `md5`, `sha1`, `sha256`, `sha512`
 
 The checksum format is: `algorithm:hash_value`

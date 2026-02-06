@@ -59,6 +59,7 @@ const (
 // 1b. Info -> TransferArchive if the content type is archive.
 // 1c. Info -> ValidatePreScratch if image size validation using nbdkit prior to Transfer is possible.
 // 1d. Info -> Transfer in all other cases.
+// 1e. Info -> Convert when ImporterPullMethod is RegistryPullNode (node pull): data is fetched via nbdkit/qemu-img only; Transfer/TransferFile are never called, so HTTP checksum validation is not supported in this path.
 // 2.  ValidatePreScratch -> TransferScratch.
 // 3a. Transfer -> Convert if content type is kubevirt
 // 3b. Transfer -> Complete if content type is archive (Transfer is called with the target instead of the scratch space). Non block PVCs only.
@@ -152,6 +153,9 @@ func (hs *HTTPDataSource) Info() (ProcessingPhase, error) {
 	if hs.contentType == cdiv1.DataVolumeArchive {
 		return ProcessingPhaseTransferDataDir, nil
 	}
+	// RegistryPullNode (node pull) fast-path: data is streamed via nbdkit to qemu-img for conversion
+	// without going through Transfer/TransferFile. Checksum validation is not performed in this path;
+	// when checksum is specified, it is ignored for node-pull imports. See documentation for limitations.
 	if pullMethod, _ := util.ParseEnvVar(common.ImporterPullMethod, false); pullMethod == string(cdiv1.RegistryPullNode) {
 		if err := hs.startNbdKit(); err != nil {
 			return ProcessingPhaseError, err
